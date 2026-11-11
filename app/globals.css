@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+body { background: #fff; color: #222222; }
+:focus-visible { outline: 3px solid #D71920; outline-offset: 2px; }
+@keyframes ticker { from { transform: translateX(100%); } to { transform: translateX(-100%); } }
+@media (prefers-reduced-motion: reduce) { .ticker-move { animation: none !important; } }
