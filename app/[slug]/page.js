@@ -1,4 +1,4 @@
-import { notFound } from 'mahmoudsaleh298298@gmail.com';
+import { notFound } from 'next/navigation';
 import { SITE_URL } from '@/lib/utils';
 
 // عدّل هذه القيم ببياناتك الحقيقية قبل الإطلاق
