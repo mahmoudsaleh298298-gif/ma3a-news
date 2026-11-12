@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import { SITE_URL } from '@/lib/utils';
 
 // عدّل هذه القيم ببياناتك الحقيقية قبل الإطلاق
-const CONTACT_EMAIL = 'info@example.com';
+const CONTACT_EMAIL = 'mahmoudsaleh298298@gmail.com';
 const UPDATED = 'نوفمبر 2026';
 
 const P = (t) => ({ type: 'p', t });
@@ -27,7 +27,7 @@ const PAGES = {
     blocks: [
       P('نرحب برسائلكم واقتراحاتكم وتصحيحاتكم، ونرد عليها بأسرع وقت ممكن.'),
       H('البريد الإلكتروني'),
-      P(mahmoudsaleh298298@gmail.com),
+      P(CONTACT_EMAIL),
       H('مواضيع نتلقاها'),
       L(['تصحيح خبر أو معلومة.', 'اقتراحات لتطوير الموقع.', 'التعاون والإعلانات.', 'طلبات حذف أو تعديل محتوى يخصكم.']),
     ],
