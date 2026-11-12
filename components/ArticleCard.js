@@ -28,6 +28,7 @@ export default function ArticleCard({ a, row = false }) {
         <h3 className="font-bold leading-snug text-ink">
           <Link href={href} className="hover:text-brand">{a.title}</Link>
         </h3>
+        {a.author_name && <p className="mt-0.5 text-xs font-bold text-muted">بقلم: {a.author_name}</p>}
         {!row && a.summary && <p className="mt-1 text-sm text-muted line-clamp-2">{a.summary}</p>}
         <time className="mt-1 block text-xs text-muted">{fmtDateTime(a.published_at)}</time>
       </div>

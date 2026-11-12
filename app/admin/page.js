@@ -21,7 +21,7 @@ export default async function Admin() {
     return <p className="py-16 text-center text-muted">حسابك بصلاحية «مشاهد فقط» ولا يمكنه إدارة المحتوى.</p>;
   }
   let articleQuery = db.from('articles')
-    .select('id,title,slug,status,published_at,views,is_breaking,is_pinned,categories(name)')
+    .select('id,title,slug,status,published_at,views,is_breaking,is_pinned,author_name,categories(name)')
     .order('updated_at', { ascending: false }).limit(100);
   if (role === 'writer') articleQuery = articleQuery.eq('author_id', user.id);
   const { data: articles } = await articleQuery;
@@ -47,7 +47,7 @@ export default async function Admin() {
       </div>
       <ul className="divide-y rounded-md border">
         {articles?.map((a) => (
-          <AdminRow key={a.id} a={{ ...a, when: fmtDateTime(a.published_at) }} canDelete={canDelete} />
+          <AdminRow key={a.id} a={{ ...a, when: fmtDateTime(a.published_at) }} canDelete={canDelete} showAuthor={role !== 'writer'} />
         ))}
         {!articles?.length && <li className="p-8 text-center text-muted">لا توجد أخبار. أضف أول خبر.</li>}
       </ul>

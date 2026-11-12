@@ -46,7 +46,11 @@ export default function ArticleForm({ article, categories, isWriter = false }) {
       ...(isWriter ? {} : { author_name: f.author_name || null }), keywords: f.keywords || null,
       seo_description: f.seo_description || null,
       ...(isWriter ? {} : { is_breaking: f.is_breaking, is_pinned: f.is_pinned }), status,
-      published_at: status === 'published' ? (isWriter ? new Date().toISOString() : new Date(f.published_at).toISOString()) : null,
+      published_at: status === 'published'
+        ? (isWriter
+            ? (article?.status === 'published' && article?.published_at ? article.published_at : new Date().toISOString())
+            : new Date(f.published_at).toISOString())
+        : null,
       updated_at: new Date().toISOString(),
     };
     const res = article
