@@ -23,6 +23,9 @@ export default async function Admin() {
   const { data: articles } = await db.from('articles')
     .select('id,title,slug,status,published_at,views,is_breaking,is_pinned,categories(name)')
     .order('updated_at', { ascending: false }).limit(100);
+  const { data: allViews } = await db.from('articles').select('views').eq('status', 'published');
+  const totalViews = (allViews || []).reduce((n, r) => n + (r.views || 0), 0);
+  const top = [...(articles || [])].sort((x, y) => y.views - x.views).slice(0, 5);
   const canDelete = ['admin', 'chief', 'editor'].includes(role);
 
   return (
@@ -30,6 +33,11 @@ export default async function Admin() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold">إدارة الأخبار</h1>
         <Link href="/admin/articles/new" className="rounded-md bg-brand px-5 py-3 font-bold text-white hover:bg-brand-dark">+ خبر جديد</Link>
+      </div>
+      <div className="mb-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-md bg-mist p-4"><p className="text-sm text-muted">إجمالي مشاهدات الأخبار</p><p className="text-2xl font-extrabold text-brand">{totalViews.toLocaleString('ar-EG')}</p></div>
+        <div className="rounded-md bg-mist p-4"><p className="text-sm text-muted">الأخبار المنشورة</p><p className="text-2xl font-extrabold text-brand">{(allViews || []).length.toLocaleString('ar-EG')}</p></div>
+        <div className="rounded-md bg-mist p-4"><p className="text-sm text-muted">الأكثر قراءة</p><ol className="mt-1 list-decimal pr-5 text-sm">{top.map((t) => <li key={t.id} className="truncate">{t.title} ({t.views})</li>)}</ol></div>
       </div>
       <ul className="divide-y rounded-md border">
         {articles?.map((a) => (

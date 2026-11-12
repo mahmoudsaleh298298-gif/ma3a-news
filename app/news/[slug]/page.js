@@ -7,6 +7,7 @@ import ArticleBody from '@/components/ArticleBody';
 import ArticleCard from '@/components/ArticleCard';
 import ShareButtons from '@/components/ShareButtons';
 import AdSlot from '@/components/AdSlot';
+import ViewCounter from '@/components/ViewCounter';
 
 export const revalidate = 60;
 
@@ -37,7 +38,6 @@ export default async function NewsPage({ params }) {
   const a = await getArticle(params.slug);
   if (!a) notFound();
   const db = publicClient();
-  db.rpc('increment_views', { article_id: a.id }).then(() => {});
 
   const [{ data: related }, { data: popular }] = await Promise.all([
     db.from('articles').select(ARTICLE_FIELDS).eq('status', 'published').eq('category_id', a.category_id)
@@ -74,6 +74,7 @@ export default async function NewsPage({ params }) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(crumbs) }} />
       <article className="lg:col-span-2">
+        <ViewCounter id={a.id} />
         <nav className="mb-2 text-sm text-muted" aria-label="مسار التصفح">
           <Link href="/" className="hover:text-brand">الرئيسية</Link>
           {a.categories && <> / <Link href={`/category/${a.categories.slug}`} className="hover:text-brand">{a.categories.name}</Link></>}
