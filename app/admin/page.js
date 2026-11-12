@@ -15,15 +15,20 @@ export default async function Admin() {
   });
   const { data: { user } } = await db.auth.getUser();
   if (!user) redirect('/admin/login');
-  const { data: profile } = await db.from('profiles').select('role').eq('id', user.id).maybeSingle();
-  const role = profile?.role || 'viewer';
+  const { data: profile } = await db.from('profiles').select('role,is_active').eq('id', user.id).maybeSingle();
+  const role = profile?.is_active === false ? 'viewer' : (profile?.role || 'viewer');
   if (role === 'viewer') {
     return <p className="py-16 text-center text-muted">حسابك بصلاحية «مشاهد فقط» ولا يمكنه إدارة المحتوى.</p>;
   }
-  const { data: articles } = await db.from('articles')
+  let articleQuery = db.from('articles')
     .select('id,title,slug,status,published_at,views,is_breaking,is_pinned,categories(name)')
     .order('updated_at', { ascending: false }).limit(100);
-  const { data: allViews } = await db.from('articles').select('views').eq('status', 'published');
+  if (role === 'writer') articleQuery = articleQuery.eq('author_id', user.id);
+  const { data: articles } = await articleQuery;
+
+  let viewsQuery = db.from('articles').select('views').eq('status', 'published');
+  if (role === 'writer') viewsQuery = viewsQuery.eq('author_id', user.id);
+  const { data: allViews } = await viewsQuery;
   const totalViews = (allViews || []).reduce((n, r) => n + (r.views || 0), 0);
   const top = [...(articles || [])].sort((x, y) => y.views - x.views).slice(0, 5);
   const canDelete = ['admin', 'chief', 'editor'].includes(role);
@@ -32,6 +37,7 @@ export default async function Admin() {
     <>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-extrabold">إدارة الأخبار</h1>
+        {role === 'admin' && <Link href="/admin/journalists" className="ml-2 rounded-md bg-mist px-4 py-3 font-bold">إدارة الصحفيين</Link>}
         <Link href="/admin/articles/new" className="rounded-md bg-brand px-5 py-3 font-bold text-white hover:bg-brand-dark">+ خبر جديد</Link>
       </div>
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
