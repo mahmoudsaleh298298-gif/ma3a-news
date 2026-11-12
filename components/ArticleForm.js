@@ -4,6 +4,35 @@ import { useRouter } from 'next/navigation';
 import { browserClient } from '@/lib/supabase/browser';
 import { makeSlug } from '@/lib/utils';
 
+// Compress uploaded editorial images in the browser before sending them to Supabase.
+// Keep the untouched original in images/originals/ for archival use, while the
+// optimized WebP is the URL used by the public site.
+async function makeOptimizedWebp(file, maxSide = 1920, quality = 0.82) {
+  if (!file.type.startsWith('image/')) throw new Error('الملف المختار ليس صورة.');
+  if (file.size > 20 * 1024 * 1024) throw new Error('حجم الصورة أكبر من 20 ميجابايت.');
+
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d', { alpha: true });
+    if (!context) throw new Error('تعذر تجهيز الصورة للضغط.');
+    context.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', quality));
+    if (!blob || blob.type !== 'image/webp') throw new Error('المتصفح لا يدعم تحويل الصورة إلى WebP.');
+    // Avoid replacing a small source with a larger encoded file.
+    if (blob.size >= file.size) return file;
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, '')}.webp`, { type: 'image/webp', lastModified: Date.now() });
+  } finally {
+    bitmap?.close?.();
+  }
+}
+
 const toLocalInput = (d) => {
   const x = d ? new Date(d) : new Date();
   return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -26,13 +55,44 @@ export default function ArticleForm({ article, categories }) {
   async function upload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setMsg('جارٍ رفع الصورة…');
+    setBusy(true);
+    setMsg('جارٍ ضغط الصورة وتجهيزها…');
     const db = browserClient();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${file.name.split('.').pop()}`;
-    const { error } = await db.storage.from('images').upload(path, file, { contentType: file.type });
-    if (error) { setMsg('تعذر رفع الصورة: ' + error.message); return; }
-    setF((p) => ({ ...p, image_url: db.storage.from('images').getPublicUrl(path).data.publicUrl }));
-    setMsg('تم رفع الصورة.');
+    const base = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    try {
+      const optimized = await makeOptimizedWebp(file);
+      const optimizedPath = `${base}${optimized.type === 'image/webp' ? '.webp' : `.${file.name.split('.').pop() || 'img'}`}`;
+      const { error: optimizedError } = await db.storage.from('images').upload(optimizedPath, optimized, {
+        contentType: optimized.type || file.type,
+        cacheControl: '31536000',
+        upsert: false,
+      });
+      if (optimizedError) throw optimizedError;
+
+      // Preserve the uploaded source file for future reprocessing; the public
+      // article uses only the optimized file URL above.
+      const originalExt = file.name.split('.').pop()?.toLowerCase() || 'img';
+      const originalPath = `originals/${base}.${originalExt}`;
+      const { error: originalError } = await db.storage.from('images').upload(originalPath, file, {
+        contentType: file.type,
+        cacheControl: '31536000',
+        upsert: false,
+      });
+      if (originalError) {
+        // The optimized file is already uploaded and usable. Warn without
+        // discarding the article image if archival upload is denied.
+        setMsg('تم رفع الصورة المحسّنة، لكن تعذر حفظ النسخة الأصلية: ' + originalError.message);
+      } else {
+        const savedPercent = Math.max(0, Math.round((1 - optimized.size / file.size) * 100));
+        setMsg(`تم رفع الصورة وتحسينها${optimized.type === 'image/webp' ? ` (WebP، توفير ${savedPercent}% تقريبًا)` : ''} مع حفظ الأصل.`);
+      }
+      setF((p) => ({ ...p, image_url: db.storage.from('images').getPublicUrl(optimizedPath).data.publicUrl }));
+    } catch (error) {
+      setMsg('تعذر تجهيز أو رفع الصورة: ' + (error?.message || 'خطأ غير معروف'));
+    } finally {
+      setBusy(false);
+      e.target.value = '';
+    }
   }
 
   async function save(status) {
@@ -69,7 +129,8 @@ export default function ArticleForm({ article, categories }) {
       </select>
       <div className="space-y-2 rounded-md bg-mist p-3">
         <label className="block text-sm font-bold">صورة الخبر</label>
-        <input type="file" accept="image/*" onChange={upload} />
+        <input type="file" accept="image/jpeg,image/png,image/webp,image/avif" onChange={upload} disabled={busy} />
+        <p className="text-xs text-muted">تُضغط الصور تلقائيًا إلى WebP وبحد أقصى 1920 بكسل، مع حفظ النسخة الأصلية في مجلد originals.</p>
         <input className={input} dir="ltr" placeholder="أو الصق رابط الصورة" value={f.image_url} onChange={set('image_url')} />
         {f.image_url && <img src={f.image_url} alt="معاينة" className="max-h-48 rounded-md" />}
       </div>
