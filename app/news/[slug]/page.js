@@ -29,7 +29,7 @@ export async function generateMetadata({ params }) {
     description: desc,
     keywords: a.keywords || undefined,
     alternates: { canonical: url },
-    openGraph: { title: a.title, description: desc, url, type: 'article', publishedTime: a.published_at, images: a.image_url ? [a.image_url] : [] },
+    openGraph: { title: a.title, description: desc, url, type: 'article', publishedTime: a.published_at, images: a.image_url ? [`${SITE_URL}/_next/image?url=${encodeURIComponent(a.image_url)}&w=1200&q=75`] : [] },
     twitter: { card: 'summary_large_image', title: a.title, description: desc },
   };
 }
