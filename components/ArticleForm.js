@@ -3,13 +3,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { browserClient } from '@/lib/supabase/browser';
 import { makeSlug } from '@/lib/utils';
+import { compressImage } from '@/lib/compressImage';
 
 const toLocalInput = (d) => {
   const x = d ? new Date(d) : new Date();
   return new Date(x.getTime() - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 
-export default function ArticleForm({ article, categories }) {
+export default function ArticleForm({ article, categories, isWriter = false }) {
   const router = useRouter();
   const [f, setF] = useState({
     title: article?.title || '', summary: article?.summary || '', content: article?.content || '',
@@ -26,13 +27,25 @@ export default function ArticleForm({ article, categories }) {
   async function upload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setMsg('جارٍ تجهيز الصورة…');
+    let out;
+    try {
+      out = await compressImage(file);
+    } catch (err) {
+      setMsg(err.message || 'تعذر معالجة الصورة.');
+      e.target.value = '';
+      return;
+    }
     setMsg('جارٍ رفع الصورة…');
     const db = browserClient();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${file.name.split('.').pop()}`;
-    const { error } = await db.storage.from('images').upload(path, file, { contentType: file.type });
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${out.ext}`;
+    const { error } = await db.storage.from('images').upload(path, out.blob, {
+      contentType: out.type,
+      cacheControl: '31536000',
+    });
     if (error) { setMsg('تعذر رفع الصورة: ' + error.message); return; }
     setF((p) => ({ ...p, image_url: db.storage.from('images').getPublicUrl(path).data.publicUrl }));
-    setMsg('تم رفع الصورة.');
+    setMsg(`تم رفع الصورة (${Math.round(out.blob.size / 1024)} كيلوبايت بعد الضغط).`);
   }
 
   async function save(status) {
@@ -43,10 +56,14 @@ export default function ArticleForm({ article, categories }) {
     const row = {
       title: f.title.trim(), summary: f.summary || null, content: f.content,
       image_url: f.image_url || null, category_id: f.category_id || null,
-      author_name: f.author_name || null, keywords: f.keywords || null,
+      ...(isWriter ? {} : { author_name: f.author_name || null }), keywords: f.keywords || null,
       seo_description: f.seo_description || null,
-      is_breaking: f.is_breaking, is_pinned: f.is_pinned, status,
-      published_at: status === 'published' ? new Date(f.published_at).toISOString() : null,
+      ...(isWriter ? {} : { is_breaking: f.is_breaking, is_pinned: f.is_pinned }), status,
+      published_at: status === 'published'
+        ? (isWriter
+            ? (article?.status === 'published' && article?.published_at ? article.published_at : new Date().toISOString())
+            : new Date(f.published_at).toISOString())
+        : null,
       updated_at: new Date().toISOString(),
     };
     const res = article
@@ -75,17 +92,17 @@ export default function ArticleForm({ article, categories }) {
       </div>
       <textarea className={input} rows={14} value={f.content} onChange={set('content')}
         placeholder={'نص الخبر. افصل الفقرات بسطر فارغ.\n## عنوان فرعي\n> اقتباس\n- عنصر قائمة'} />
-      <input className={input} placeholder="اسم الكاتب أو المحرر" value={f.author_name} onChange={set('author_name')} />
+      {!isWriter && <input className={input} placeholder="اسم الكاتب أو المحرر" value={f.author_name} onChange={set('author_name')} />}
       <input className={input} placeholder="كلمات مفتاحية (مفصولة بفواصل)" value={f.keywords} onChange={set('keywords')} />
       <textarea className={input} rows={2} placeholder="وصف SEO (حتى 160 حرفًا)" maxLength={200} value={f.seo_description} onChange={set('seo_description')} />
-      <div className="flex flex-wrap gap-6">
+      {!isWriter && <div className="flex flex-wrap gap-6">
         <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={f.is_breaking} onChange={set('is_breaking')} /> خبر عاجل</label>
         <label className="flex items-center gap-2 font-bold"><input type="checkbox" checked={f.is_pinned} onChange={set('is_pinned')} /> تثبيت في الرئيسية</label>
-      </div>
-      <div>
+      </div>}
+      {!isWriter && <div>
         <label className="mb-1 block text-sm font-bold">موعد النشر (اختر وقتًا مستقبليًا للجدولة)</label>
         <input type="datetime-local" className={input} value={f.published_at} onChange={set('published_at')} />
-      </div>
+      </div>}
       {msg && <p role="status" className="font-bold text-brand">{msg}</p>}
       <div className="flex gap-3">
         <button disabled={busy} onClick={() => save('published')} className="flex-1 rounded-md bg-brand py-3 font-bold text-white hover:bg-brand-dark disabled:opacity-60">نشر</button>
