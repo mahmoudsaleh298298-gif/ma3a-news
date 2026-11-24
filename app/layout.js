@@ -11,6 +11,11 @@ export const metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: `${SITE_NAME} — رياضة .. من قلب الجماهير`, template: `%s | ${SITE_NAME}` },
   description: 'أخبار كرة القدم المصرية والعربية والعالمية: الأهلي، الزمالك، بيراميدز، المنتخب والانتقالات.',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-image-preview': 'large', 'max-snippet': -1, 'max-video-preview': -1 },
+  },
   openGraph: { siteName: SITE_NAME, locale: 'ar_EG', type: 'website' },
   twitter: { card: 'summary_large_image' },
 };

@@ -18,6 +18,7 @@ function Person({ p, meId }) {
   const [open, setOpen] = useState(false);
   const [pw, setPw] = useState('');
   const [name, setName] = useState(p.full_name || '');
+  const [bio, setBio] = useState(p.bio || '');
   const isMe = p.id === meId;
 
   async function patch(body, ok) {
@@ -51,6 +52,10 @@ function Person({ p, meId }) {
           <div className="flex gap-2">
             <input className={input} dir="ltr" type="text" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="كلمة مرور جديدة (8 أحرف+)" />
             <button onClick={() => patch({ password: pw }, 'تم تغيير كلمة المرور.')} className="rounded-md bg-brand px-3 text-sm font-bold text-white">تغيير</button>
+          </div>
+          <div className="flex gap-2 sm:col-span-2">
+            <textarea className={input} rows={2} maxLength={600} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="نبذة قصيرة عن الكاتب وتخصصه (تظهر في صفحة الكاتب)" />
+            <button onClick={() => patch({ bio }, 'تم حفظ النبذة.')} className="rounded-md bg-brand px-3 text-sm font-bold text-white">حفظ</button>
           </div>
           {!isMe && (
             <button onClick={() => patch({ is_active: !p.is_active }, p.is_active ? 'تم إيقاف الحساب.' : 'تم تفعيل الحساب.')}

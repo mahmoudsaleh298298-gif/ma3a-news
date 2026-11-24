@@ -37,6 +37,8 @@ export default async function NewsPage({ params }) {
   ]);
 
   const url = `${SITE_URL}/news/${a.slug}`;
+  // رابط صفحة الكاتب يظهر فقط إذا كان اسم الكاتب المكتوب هو اسم صاحب الحساب نفسه
+  const authorLink = a.author_id && a.author_name && a.author_profile_name && a.author_name.trim() === a.author_profile_name.trim() ? `/author/${a.author_id}` : null;
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'NewsArticle',
@@ -46,7 +48,7 @@ export default async function NewsPage({ params }) {
     datePublished: a.published_at,
     dateModified: a.updated_at,
     mainEntityOfPage: url,
-    author: { '@type': 'Person', name: a.author_name || 'فريق التحرير' },
+    author: { '@type': 'Person', name: a.author_name || 'فريق التحرير', ...(authorLink ? { url: `${SITE_URL}${authorLink}` } : {}) },
     publisher: { '@type': 'Organization', name: SITE_NAME },
   };
   const crumbs = {
@@ -71,7 +73,7 @@ export default async function NewsPage({ params }) {
         </nav>
         <h1 className="text-2xl font-extrabold leading-snug sm:text-4xl">{a.title}</h1>
         <p className="mt-3 text-sm text-muted">
-          {a.author_name || 'فريق التحرير'} · نُشر {fmtDateTime(a.published_at)}
+          {authorLink ? <Link href={authorLink} className="font-bold hover:text-brand">{a.author_name}</Link> : (a.author_name || 'فريق التحرير')} · نُشر {fmtDateTime(a.published_at)}
           {a.updated_at && new Date(a.updated_at) - new Date(a.published_at) > 60000 && <> · آخر تحديث {fmtDateTime(a.updated_at)}</>}
           {' '}· {a.views.toLocaleString('ar-EG')} مشاهدة
         </p>

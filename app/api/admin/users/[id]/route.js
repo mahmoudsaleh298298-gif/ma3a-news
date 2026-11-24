@@ -35,9 +35,14 @@ export async function PATCH(req, { params }) {
       `UPDATE public.profiles SET
           full_name = CASE WHEN $2::boolean THEN $3 ELSE full_name END,
           role      = COALESCE($4, role),
-          is_active = COALESCE($5, is_active)
+          is_active = COALESCE($5, is_active),
+          bio       = CASE WHEN $6::boolean THEN $7 ELSE bio END
         WHERE id = $1`,
-      [params.id, b.name !== undefined, String(b.name ?? '').trim() || null, b.role || null, typeof b.is_active === 'boolean' ? b.is_active : null]
+      [
+        params.id, b.name !== undefined, String(b.name ?? '').trim() || null, b.role || null,
+        typeof b.is_active === 'boolean' ? b.is_active : null,
+        b.bio !== undefined, String(b.bio ?? '').trim().slice(0, 600) || null,
+      ]
     );
     if (b.password) {
       await c.query(`UPDATE public.users SET password_hash = $2 WHERE id = $1`, [params.id, await bcrypt.hash(String(b.password), 10)]);

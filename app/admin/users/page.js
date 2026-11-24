@@ -12,7 +12,7 @@ export default async function Users() {
   if (!me) redirect('/admin/login');
   if (me.role !== 'admin') redirect('/admin');
   const people = await rows(
-    `SELECT p.id, p.full_name, p.role, p.is_active, u.email, (u.id IS NOT NULL) AS has_login,
+    `SELECT p.id, p.full_name, p.bio, p.role, p.is_active, u.email, (u.id IS NOT NULL) AS has_login,
             (SELECT count(*)::int FROM public.articles a WHERE a.author_id = p.id) AS articles,
             (SELECT COALESCE(sum(a.views), 0)::int FROM public.articles a WHERE a.author_id = p.id AND a.status = 'published') AS views
        FROM public.profiles p LEFT JOIN public.users u ON u.id = p.id

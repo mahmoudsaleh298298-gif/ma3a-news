@@ -16,7 +16,8 @@ CREATE INDEX IF NOT EXISTS articles_status_published_at_idx ON public.articles (
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY, full_name text,
   role text NOT NULL DEFAULT 'viewer' CHECK (role IN ('admin','chief','editor','writer','viewer')),
-  is_active boolean NOT NULL DEFAULT true
+  is_active boolean NOT NULL DEFAULT true,
+  bio text
 );
 CREATE TABLE IF NOT EXISTS public.ads (
   id serial PRIMARY KEY,
