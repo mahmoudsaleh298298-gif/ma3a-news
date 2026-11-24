@@ -1,8 +1,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { publicClient } from '@/lib/supabase/public';
-import { ARTICLE_FIELDS, SITE_URL, SITE_NAME, fmtDateTime } from '@/lib/utils';
+import { getArticleBySlug, relatedArticles, popularArticles } from '@/lib/queries';
+import { SITE_URL, SITE_NAME, fmtDateTime, ogImage } from '@/lib/utils';
 import ArticleBody from '@/components/ArticleBody';
 import ArticleCard from '@/components/ArticleCard';
 import ShareButtons from '@/components/ShareButtons';
@@ -11,13 +11,7 @@ import ViewCounter from '@/components/ViewCounter';
 
 export const revalidate = 60;
 
-async function getArticle(slug) {
-  const { data } = await publicClient()
-    .from('articles').select('*, categories(name,slug)')
-    .eq('slug', decodeURIComponent(slug)).eq('status', 'published')
-    .lte('published_at', new Date().toISOString()).maybeSingle();
-  return data;
-}
+const getArticle = (slug) => getArticleBySlug(decodeURIComponent(slug));
 
 export async function generateMetadata({ params }) {
   const a = await getArticle(params.slug);
@@ -29,7 +23,7 @@ export async function generateMetadata({ params }) {
     description: desc,
     keywords: a.keywords || undefined,
     alternates: { canonical: url },
-    openGraph: { title: a.title, description: desc, url, type: 'article', publishedTime: a.published_at, images: a.image_url ? [`${SITE_URL}/_next/image?url=${encodeURIComponent(a.image_url)}&w=1200&q=75`] : [] },
+    openGraph: { title: a.title, description: desc, url, type: 'article', publishedTime: a.published_at, images: a.image_url ? [ogImage(a.image_url)] : [] },
     twitter: { card: 'summary_large_image', title: a.title, description: desc },
   };
 }
@@ -37,13 +31,9 @@ export async function generateMetadata({ params }) {
 export default async function NewsPage({ params }) {
   const a = await getArticle(params.slug);
   if (!a) notFound();
-  const db = publicClient();
-
-  const [{ data: related }, { data: popular }] = await Promise.all([
-    db.from('articles').select(ARTICLE_FIELDS).eq('status', 'published').eq('category_id', a.category_id)
-      .neq('id', a.id).lte('published_at', new Date().toISOString()).order('published_at', { ascending: false }).limit(4),
-    db.from('articles').select('id,title,slug,image_url,published_at,categories(name,slug)').eq('status', 'published')
-      .lte('published_at', new Date().toISOString()).order('views', { ascending: false }).limit(5),
+  const [related, popular] = await Promise.all([
+    a.category_id ? relatedArticles(a.category_id, a.id, 4) : [],
+    popularArticles(5),
   ]);
 
   const url = `${SITE_URL}/news/${a.slug}`;
@@ -52,7 +42,7 @@ export default async function NewsPage({ params }) {
     '@type': 'NewsArticle',
     headline: a.title,
     description: a.seo_description || a.summary,
-    image: a.image_url ? [a.image_url] : undefined,
+    image: a.image_url ? [ogImage(a.image_url)] : undefined,
     datePublished: a.published_at,
     dateModified: a.updated_at,
     mainEntityOfPage: url,
@@ -94,7 +84,7 @@ export default async function NewsPage({ params }) {
         {a.summary && <p className="mb-4 text-xl font-bold leading-9">{a.summary}</p>}
         <AdSlot placement="in_article" />
         <ArticleBody text={a.content} />
-        {related?.length > 0 && (
+        {related.length > 0 && (
           <section className="mt-10">
             <h2 className="mb-3 border-r-4 border-brand pr-3 text-xl font-extrabold">أخبار ذات صلة</h2>
             <div className="grid gap-4 sm:grid-cols-2">{related.map((r) => <ArticleCard key={r.id} a={r} />)}</div>
@@ -105,7 +95,7 @@ export default async function NewsPage({ params }) {
         <AdSlot placement="sidebar" />
         <section>
           <h2 className="mb-3 border-r-4 border-brand pr-3 text-xl font-extrabold">الأكثر قراءة</h2>
-          <div className="space-y-3">{popular?.map((p) => <ArticleCard key={p.id} a={p} row />)}</div>
+          <div className="space-y-3">{popular.map((p) => <ArticleCard key={p.id} a={p} row />)}</div>
         </section>
       </aside>
     </div>

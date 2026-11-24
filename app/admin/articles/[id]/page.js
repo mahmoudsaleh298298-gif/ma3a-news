@@ -1,19 +1,22 @@
-import { notFound } from 'next/navigation';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { notFound, redirect } from 'next/navigation';
+import { row } from '@/lib/db';
+import { getSession } from '@/lib/auth';
+import { allCategories } from '@/lib/queries';
+import { UUID } from '@/lib/guard';
 import ArticleForm from '@/components/ArticleForm';
 
 export const dynamic = 'force-dynamic';
 
 export default async function EditArticle({ params }) {
-  const store = cookies();
-  const db = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
-    cookies: { getAll: () => store.getAll(), setAll() {} },
-  });
-  const [{ data: article }, { data: categories }] = await Promise.all([
-    db.from('articles').select('*').eq('id', params.id).maybeSingle(),
-    db.from('categories').select('id,name').order('sort_order'),
+  const user = await getSession();
+  if (!user || user.role === 'viewer') redirect('/admin');
+  if (!UUID.test(params.id)) notFound();
+  const [article, categories] = await Promise.all([
+    row(`SELECT * FROM public.articles WHERE id = $1`, [params.id]),
+    allCategories(),
   ]);
   if (!article) notFound();
-  return <ArticleForm article={article} categories={categories || []} />;
+  const isWriter = user.role === 'writer';
+  if (isWriter && article.author_id !== user.id) notFound();
+  return <ArticleForm article={article} categories={categories} isWriter={isWriter} />;
 }

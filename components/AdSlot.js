@@ -1,17 +1,16 @@
-import { publicClient } from '@/lib/supabase/public';
+import { getAd, getSetting } from '@/lib/queries';
 
-// يعرض إعلان AdSense فقط إذا تم تفعيل موضع الإعلان وإدخال رقم الناشر من لوحة قاعدة البيانات.
+// يعرض إعلان AdSense فقط إذا تم تفعيل موضع الإعلان وإدخال رقم الناشر في قاعدة البيانات.
 export default async function AdSlot({ placement }) {
-  const db = publicClient();
-  const [{ data: ad }, { data: s }] = await Promise.all([
-    db.from('ads').select('slot_id').eq('placement', placement).eq('active', true).limit(1).maybeSingle(),
-    db.from('settings').select('value').eq('key', 'adsense_client').maybeSingle(),
+  const [ad, client] = await Promise.all([
+    getAd(placement).catch(() => null),
+    getSetting('adsense_client').catch(() => null),
   ]);
-  if (!ad || !s?.value) return null;
+  if (!ad || !client) return null;
   return (
     <div className="my-4 text-center" aria-label="إعلان">
       <ins className="adsbygoogle" style={{ display: 'block' }}
-        data-ad-client={s.value} data-ad-slot={ad.slot_id}
+        data-ad-client={client} data-ad-slot={ad.slot_id}
         data-ad-format="auto" data-full-width-responsive="true" />
       <script dangerouslySetInnerHTML={{ __html: '(window.adsbygoogle=window.adsbygoogle||[]).push({});' }} />
     </div>

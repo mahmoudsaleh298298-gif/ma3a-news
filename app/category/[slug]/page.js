@@ -1,16 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { publicClient } from '@/lib/supabase/public';
-import { ARTICLE_FIELDS, SITE_URL } from '@/lib/utils';
+import { getCategoryBySlug, categoryArticles } from '@/lib/queries';
+import { SITE_URL } from '@/lib/utils';
 import ArticleCard from '@/components/ArticleCard';
 
 export const revalidate = 60;
 const PAGE = 12;
 
-async function getCat(slug) {
-  const { data } = await publicClient().from('categories').select('id,name,slug').eq('slug', decodeURIComponent(slug)).maybeSingle();
-  return data;
-}
+const getCat = (slug) => getCategoryBySlug(decodeURIComponent(slug));
 
 export async function generateMetadata({ params }) {
   const c = await getCat(params.slug);
@@ -23,11 +20,9 @@ export default async function Category({ params, searchParams }) {
   if (!c) notFound();
   const page = Math.max(1, parseInt(searchParams.page || '1', 10) || 1);
   const from = (page - 1) * PAGE;
-  const { data: items } = await publicClient().from('articles').select(ARTICLE_FIELDS)
-    .eq('category_id', c.id).eq('status', 'published').lte('published_at', new Date().toISOString())
-    .order('published_at', { ascending: false }).range(from, from + PAGE);
-  const shown = (items || []).slice(0, PAGE);
-  const hasMore = (items || []).length > PAGE;
+  const items = await categoryArticles(c.id, PAGE + 1, from);
+  const shown = items.slice(0, PAGE);
+  const hasMore = items.length > PAGE;
 
   return (
     <>

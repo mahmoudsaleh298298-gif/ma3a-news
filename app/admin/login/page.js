@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { browserClient } from '@/lib/supabase/browser';
 
 export default function Login() {
   const router = useRouter();
@@ -13,8 +12,17 @@ export default function Login() {
   async function submit(e) {
     e.preventDefault();
     setBusy(true); setError('');
-    const { error } = await browserClient().auth.signInWithPassword({ email, password });
-    if (error) { setError('البريد الإلكتروني أو كلمة المرور غير صحيحة.'); setBusy(false); return; }
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error || 'البريد الإلكتروني أو كلمة المرور غير صحيحة.');
+      setBusy(false);
+      return;
+    }
     router.replace('/admin'); router.refresh();
   }
 

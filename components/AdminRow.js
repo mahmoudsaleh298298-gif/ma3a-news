@@ -1,14 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { browserClient } from '@/lib/supabase/browser';
 
 export default function AdminRow({ a, canDelete }) {
   const router = useRouter();
   async function remove() {
     if (!confirm('حذف هذا الخبر نهائيًا؟')) return;
-    const { error } = await browserClient().from('articles').delete().eq('id', a.id);
-    if (error) alert('تعذر الحذف: ' + error.message); else router.refresh();
+    const res = await fetch(`/api/articles/${a.id}`, { method: 'DELETE' });
+    if (res.ok) router.refresh();
+    else alert('تعذر الحذف: ' + ((await res.json().catch(() => ({}))).error || res.status));
   }
   const scheduled = a.status === 'published' && new Date(a.published_at) > new Date();
   const label = a.status === 'draft' ? 'مسودة' : scheduled ? 'مجدول' : 'منشور';

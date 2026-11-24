@@ -2,7 +2,7 @@ import { Cairo } from 'next/font/google';
 import './globals.css';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { publicClient } from '@/lib/supabase/public';
+import { getSetting } from '@/lib/queries';
 import { SITE_URL, SITE_NAME } from '@/lib/utils';
 
 const cairo = Cairo({ subsets: ['arabic', 'latin'], variable: '--font-cairo', display: 'swap' });
@@ -18,13 +18,13 @@ export const metadata = {
 export const revalidate = 60;
 
 export default async function RootLayout({ children }) {
-  const { data: s } = await publicClient().from('settings').select('value').eq('key', 'adsense_client').maybeSingle();
+  const adClient = await getSetting('adsense_client').catch(() => null);
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <head>
-        {s?.value && (
+        {adClient && (
           <script async crossOrigin="anonymous"
-            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${s.value}`} />
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`} />
         )}
       </head>
       <body className="font-sans antialiased">

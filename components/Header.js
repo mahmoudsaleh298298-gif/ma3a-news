@@ -1,9 +1,8 @@
 import Link from 'next/link';
-import { publicClient } from '@/lib/supabase/public';
+import { navCategories } from '@/lib/queries';
 
 export default async function Header() {
-  const { data: cats } = await publicClient()
-    .from('categories').select('name,slug').eq('show_in_nav', true).order('sort_order');
+  const cats = await navCategories().catch(() => []);
   const today = new Date().toLocaleDateString('ar-EG', {
     weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
   });

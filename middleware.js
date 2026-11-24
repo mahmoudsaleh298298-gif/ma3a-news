@@ -1,28 +1,20 @@
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
+import { jwtVerify } from 'jose';
 
+// يتحقق من توقيع الجلسة فقط (الدور والتفعيل تتحقق منهما الصفحات والـAPI من قاعدة البيانات).
 export async function middleware(request) {
-  let response = NextResponse.next({ request });
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll(list) {
-          list.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          list.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
-        },
-      },
-    }
-  );
-  const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
-  if (!user && path.startsWith('/admin') && path !== '/admin/login') {
-    return NextResponse.redirect(new URL('/admin/login', request.url));
+  if (path === '/admin/login' || path === '/admin/setup') return NextResponse.next();
+  const token = request.cookies.get('ma3a_session')?.value;
+  let ok = false;
+  if (token && (process.env.AUTH_SECRET || '').length >= 32) {
+    try {
+      await jwtVerify(token, new TextEncoder().encode(process.env.AUTH_SECRET));
+      ok = true;
+    } catch {}
   }
-  return response;
+  if (!ok) return NextResponse.redirect(new URL('/admin/login', request.url));
+  return NextResponse.next();
 }
 
 export const config = { matcher: ['/admin/:path*'] };

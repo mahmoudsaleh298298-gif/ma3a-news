@@ -1,5 +1,5 @@
-import { publicClient } from '@/lib/supabase/public';
-import { ARTICLE_FIELDS, cleanQuery } from '@/lib/utils';
+import { searchArticles } from '@/lib/queries';
+import { cleanQuery } from '@/lib/utils';
 import ArticleCard from '@/components/ArticleCard';
 
 export const metadata = { title: 'بحث' };
@@ -7,13 +7,7 @@ export const metadata = { title: 'بحث' };
 export default async function Search({ searchParams }) {
   const q = cleanQuery(searchParams.q);
   let results = [];
-  if (q) {
-    const { data } = await publicClient().from('articles').select(ARTICLE_FIELDS)
-      .eq('status', 'published').lte('published_at', new Date().toISOString())
-      .or(`title.ilike.%${q}%,summary.ilike.%${q}%,content.ilike.%${q}%,keywords.ilike.%${q}%`)
-      .order('published_at', { ascending: false }).limit(30);
-    results = data || [];
-  }
+  if (q) results = await searchArticles(q);
   return (
     <>
       <form action="/search" className="mb-6 flex gap-2">

@@ -1,8 +1,6 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { browserClient } from '@/lib/supabase/browser';
-import { makeSlug } from '@/lib/utils';
 import { compressImage } from '@/lib/compressImage';
 
 const toLocalInput = (d) => {
@@ -37,40 +35,33 @@ export default function ArticleForm({ article, categories, isWriter = false }) {
       return;
     }
     setMsg('جارٍ رفع الصورة…');
-    const db = browserClient();
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${out.ext}`;
-    const { error } = await db.storage.from('images').upload(path, out.blob, {
-      contentType: out.type,
-      cacheControl: '31536000',
-    });
-    if (error) { setMsg('تعذر رفع الصورة: ' + error.message); return; }
-    setF((p) => ({ ...p, image_url: db.storage.from('images').getPublicUrl(path).data.publicUrl }));
+    const fd = new FormData();
+    fd.append('file', new File([out.blob], `image.${out.ext}`, { type: out.type }));
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) { setMsg('تعذر رفع الصورة: ' + (j.error || res.status)); return; }
+    setF((p) => ({ ...p, image_url: j.url }));
     setMsg(`تم رفع الصورة (${Math.round(out.blob.size / 1024)} كيلوبايت بعد الضغط).`);
   }
 
   async function save(status) {
     if (!f.title.trim()) { setMsg('اكتب عنوان الخبر أولًا.'); return; }
     setBusy(true); setMsg('');
-    const db = browserClient();
-    const { data: { user } } = await db.auth.getUser();
     const row = {
       title: f.title.trim(), summary: f.summary || null, content: f.content,
       image_url: f.image_url || null, category_id: f.category_id || null,
-      ...(isWriter ? {} : { author_name: f.author_name || null }), keywords: f.keywords || null,
+      author_name: f.author_name || null, keywords: f.keywords || null,
       seo_description: f.seo_description || null,
-      ...(isWriter ? {} : { is_breaking: f.is_breaking, is_pinned: f.is_pinned }), status,
-      published_at: status === 'published'
-        ? (isWriter
-            ? (article?.status === 'published' && article?.published_at ? article.published_at : new Date().toISOString())
-            : new Date(f.published_at).toISOString())
-        : null,
-      updated_at: new Date().toISOString(),
+      is_breaking: f.is_breaking, is_pinned: f.is_pinned, status,
+      published_at: f.published_at ? new Date(f.published_at).toISOString() : null,
     };
-    const res = article
-      ? await db.from('articles').update(row).eq('id', article.id)
-      : await db.from('articles').insert({ ...row, slug: makeSlug(f.title), author_id: user?.id });
+    const res = await fetch(article ? `/api/articles/${article.id}` : '/api/articles', {
+      method: article ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(row),
+    });
     setBusy(false);
-    if (res.error) { setMsg('تعذر الحفظ: ' + res.error.message); return; }
+    if (!res.ok) { setMsg('تعذر الحفظ: ' + ((await res.json().catch(() => ({}))).error || res.status)); return; }
     router.push('/admin'); router.refresh();
   }
 

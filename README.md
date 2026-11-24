@@ -1,23 +1,24 @@
 # مع المشجع | نيوز
 
-موقع أخبار رياضية (Next.js 14 + Tailwind + Supabase). واجهة عربية RTL بهوية حمراء وبيضاء.
+موقع أخبار رياضية: Next.js 14 + Tailwind، قاعدة بيانات **Neon (Postgres)**، صور **Cloudinary**، دخول مدمج في الموقع.
 
-## التشغيل
-1. أنشئ مشروعًا في supabase.com ثم افتح SQL Editor وشغّل محتوى `supabase/schema.sql` كاملًا.
-2. انسخ `.env.example` إلى `.env.local` وضع رابط المشروع ومفتاح anon (Settings > API) وعنوان موقعك.
-3. في Supabase > Authentication > Users أنشئ مستخدمًا (بريد وكلمة مرور)، ثم شغّل في SQL Editor:
-   `update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'بريدك');`
-4. `npm install` ثم `npm run dev` وافتح http://localhost:3000 ، ولوحة التحكم على /admin
-5. للنشر: ارفع المشروع إلى GitHub واستورده في Vercel، وأضف نفس المتغيرات الثلاثة.
+## متغيرات البيئة (Vercel > Settings > Environment Variables)
+| المتغير | الوصف |
+|---|---|
+| `DATABASE_URL` | رابط الاتصال (Pooled connection) من Neon |
+| `AUTH_SECRET` | نص عشوائي سري من 32 حرفًا فأكثر (لتوقيع جلسات الدخول) |
+| `SETUP_KEY` | مفتاح لمرة واحدة لإنشاء أول مدير من `/admin/setup` |
+| `CLOUDINARY_CLOUD_NAME` | اسم السحابة في Cloudinary |
+| `CLOUDINARY_API_KEY` | مفتاح API في Cloudinary |
+| `CLOUDINARY_API_SECRET` | السر في Cloudinary (لا يصل للمتصفح أبدًا) |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.ma3a-news.com` |
 
-## ما يعمل الآن
-الصفحة الرئيسية (عاجل، خبر رئيسي، آخر الأخبار، أقسام)، صفحة الخبر (NewsArticle وBreadcrumbs وCanonical وOpen Graph)، الأقسام مع تحميل المزيد، البحث النصي، الأخبار العاجلة، sitemap وrobots، لوحة التحكم (دخول، نشر، مسودة، جدولة، تعديل، حذف، رفع صور، عاجل، تثبيت، SEO)، صلاحيات الأدوار على مستوى قاعدة البيانات، عدّاد المشاهدات، أماكن AdSense.
+## قاعدة البيانات
+الهيكل في `db/schema.sql`. لا توجد صلاحيات على مستوى الصفوف؛ كل الصلاحيات تُفحص في الخادم (`/app/api`).
 
-## لم يُبنَ بعد (مراحل لاحقة)
-صفحات الأندية، مركز المباريات والنتائج (يحتاج مزود API)، مركز الانتقالات، الإشعارات، اقتراحات البحث الفورية، إدارة المستخدمين والأقسام والإعلانات من واجهة اللوحة (حاليًا عبر Supabase Table Editor)، إحصائيات الزيارات (استخدم Vercel Analytics أو GA مؤقتًا).
+## الأدوار
+admin (مدير) · chief (رئيس تحرير) · editor (محرر) · writer (صحفي: يرى ويعدّل أخباره فقط، ولا يضع «عاجل» أو «تثبيت») · viewer (مشاهد).
 
-## AdSense
-أضف في جدول `settings` صفًا: key = `adsense_client` و value = `ca-pub-XXXX`، ثم صفوفًا في جدول `ads` لكل موضع (top, between_sections, in_article, sidebar) مع slot_id.
-
-## الأخبار التجريبية
-أخبار seed تبدأ بكلمة «تجريبي» — احذفها من لوحة التحكم قبل الإطلاق.
+## أول تشغيل
+1. افتح `/admin/setup` وأنشئ أول مدير (يحتاج `SETUP_KEY`)، وتظهر الصفحة مرة واحدة فقط.
+2. من `/admin/users` أضف الصحفيين أو اربطهم بملفاتهم القديمة.

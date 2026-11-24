@@ -1,31 +1,21 @@
 import Link from 'next/link';
-import { publicClient } from '@/lib/supabase/public';
-import { ARTICLE_FIELDS, fmtDateTime } from '@/lib/utils';
+import { topArticles, breakingArticles, latestArticles, homeCategories, categoryArticles } from '@/lib/queries';
+import { fmtDateTime } from '@/lib/utils';
 import ArticleCard, { Thumb } from '@/components/ArticleCard';
 import AdSlot from '@/components/AdSlot';
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const db = publicClient();
-  const now = new Date().toISOString();
-  const base = () => db.from('articles').select(ARTICLE_FIELDS).eq('status', 'published').lte('published_at', now);
-
-  const [{ data: top }, { data: breaking }, { data: latest }, { data: cats }] = await Promise.all([
-    base().order('is_pinned', { ascending: false }).order('published_at', { ascending: false }).limit(5),
-    base().eq('is_breaking', true).order('published_at', { ascending: false }).limit(10),
-    base().order('published_at', { ascending: false }).limit(12),
-    db.from('categories').select('id,name,slug').eq('show_on_home', true).order('sort_order'),
+  const [top, breaking, latest, cats] = await Promise.all([
+    topArticles(5), breakingArticles(10), latestArticles(12), homeCategories(),
   ]);
 
   const sections = await Promise.all(
-    (cats || []).map(async (c) => {
-      const { data } = await base().eq('category_id', c.id).order('published_at', { ascending: false }).limit(4);
-      return { ...c, items: data || [] };
-    })
+    cats.map(async (c) => ({ ...c, items: await categoryArticles(c.id, 4) }))
   );
 
-  const [hero, ...side] = top || [];
+  const [hero, ...side] = top;
 
   if (!hero) {
     return <p className="py-20 text-center text-muted">لا توجد أخبار منشورة بعد. أضف أول خبر من لوحة التحكم.</p>;
